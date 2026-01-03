@@ -229,59 +229,19 @@ generate_hardware_config() {
     if [[ -f "$hw_config" ]]; then
         mkdir -p "$BACKUP_DIR"
         cp "$hw_config" "$hw_backup"
-        log_info "Backup do hardware-configuration.nix criado"
+        log_info "Backup do hardware-configuration.nix criado em $BACKUP_DIR"
     fi
     
     # Gerar nova configuração
     log_info "Gerando nova configuração de hardware..."
     
-    local temp_hw="/tmp/hardware-configuration.nix"
-    
-    if sudo nixos-generate-config --show-hardware-config > "$temp_hw" 2>/dev/null; then
-        log_success "Configuração de hardware gerada"
-        
-        # Adicionar configurações extras ao arquivo gerado
-        cat > "$hw_config" << 'HEADER'
-# ============================================================
-# CONFIGURAÇÃO DE HARDWARE - GERADO AUTOMATICAMENTE
-# ============================================================
-# Este arquivo foi gerado por nixos-generate-config e
-# personalizado pelo script de instalação.
-#
-# Gerado em: $(date)
-# ============================================================
-
-HEADER
-        # Append the generated content
-        cat "$temp_hw" >> "$hw_config"
-        
-        # Adicionar configurações extras
-        cat >> "$hw_config" << 'EXTRAS'
-
-  # ============================================================
-  # CONFIGURAÇÕES ADICIONAIS
-  # ============================================================
-  
-  # Bluetooth
-  hardware.bluetooth = {
-    enable = true;
-    powerOnBoot = true;
-  };
-  
-  services.blueman.enable = true;
-
-  # Gráficos base
-  hardware.graphics = {
-    enable = true;
-    enable32Bit = true;
-  };
-}
-EXTRAS
-        
-        log_success "hardware-configuration.nix atualizado"
+    if sudo nixos-generate-config --show-hardware-config > "$hw_config" 2>/dev/null; then
+        log_success "hardware-configuration.nix gerado com sucesso"
+        log_info "Configurações adicionais (bluetooth, graphics) já estão nos outros módulos"
     else
         log_error "Falha ao gerar configuração de hardware"
         log_info "Mantendo arquivo template existente"
+        log_warning "Você precisará editar hardware-configuration.nix manualmente"
     fi
 }
 
