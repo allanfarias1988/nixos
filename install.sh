@@ -40,6 +40,9 @@ HOSTNAME="nixos-workstation"
 USERNAME="allan"
 BACKUP_DIR="$HOME/.nixos-backup-$(date +%Y%m%d-%H%M%S)"
 
+# Flags para habilitar flakes temporariamente
+NIX_FLAGS="--extra-experimental-features nix-command --extra-experimental-features flakes"
+
 # ============================================================
 # FUNÇÕES UTILITÁRIAS
 # ============================================================
@@ -114,11 +117,11 @@ check_nixos() {
 }
 
 check_flakes() {
-    if nix flake --version &>/dev/null; then
-        log_success "Flakes habilitado"
+    if nix $NIX_FLAGS flake --version &>/dev/null; then
+        log_success "Flakes disponível"
         return 0
     else
-        log_warning "Flakes não está habilitado"
+        log_warning "Flakes não está disponível - usando flags temporárias"
         return 1
     fi
 }
@@ -401,7 +404,8 @@ verify_config() {
     
     cd "$CONFIG_DIR"
     
-    if nix flake check --no-build 2>&1 | tee /tmp/flake-check.log; then
+    # Usar flags para habilitar flakes temporariamente
+    if nix $NIX_FLAGS flake check --no-build 2>&1 | tee /tmp/flake-check.log; then
         log_success "Configuração válida!"
         return 0
     else
@@ -423,7 +427,7 @@ build_system() {
     # Build primeiro (sem switch)
     if confirm "Fazer build de teste primeiro (recomendado)?"; then
         log_info "Executando nixos-rebuild build..."
-        if sudo nixos-rebuild build --flake ".#$HOSTNAME"; then
+        if sudo nixos-rebuild build --flake ".#$HOSTNAME" $NIX_FLAGS; then
             log_success "Build concluído com sucesso!"
         else
             log_error "Falha no build"
@@ -434,11 +438,11 @@ build_system() {
     # Switch
     if confirm "Aplicar configuração agora (switch)?"; then
         log_info "Executando nixos-rebuild switch..."
-        if sudo nixos-rebuild switch --flake ".#$HOSTNAME"; then
+        if sudo nixos-rebuild switch --flake ".#$HOSTNAME" $NIX_FLAGS; then
             log_success "Sistema configurado com sucesso!"
         else
             log_error "Falha ao aplicar configuração"
-            log_info "Tente: sudo nixos-rebuild switch --flake .#$HOSTNAME --show-trace"
+            log_info "Tente: sudo nixos-rebuild switch --flake .#$HOSTNAME $NIX_FLAGS --show-trace"
             return 1
         fi
     fi
@@ -483,13 +487,13 @@ update_system() {
     
     if confirm "Atualizar flake.lock (dependências)?"; then
         log_info "Atualizando dependências..."
-        nix flake update
+        nix $NIX_FLAGS flake update
         log_success "Dependências atualizadas"
     fi
     
     log_info "Aplicando configuração..."
     
-    if sudo nixos-rebuild switch --flake ".#$HOSTNAME"; then
+    if sudo nixos-rebuild switch --flake ".#$HOSTNAME" $NIX_FLAGS; then
         log_success "Sistema atualizado com sucesso!"
     else
         log_error "Falha na atualização"
