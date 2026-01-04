@@ -1,5 +1,7 @@
 # 🚀 NixOS Configuration - Allan Farias
 
+> **NixOS 25.11 "Xantusia"** | Configuração reproduzível com Flakes
+
 Configuração NixOS completa e reproduzível usando Flakes. Este setup inclui:
 
 - 🖥️ **Hyprland** - Compositor Wayland moderno com animações
@@ -133,15 +135,37 @@ Descomente `./modules/gaming.nix` no `flake.nix` para Steam, Lutris, etc.
 
 ## 🔄 Comandos Úteis
 
+### Usando o Script de Instalação
+
 ```bash
-# Rebuild e switch
-sudo nixos-rebuild switch --flake .
+# Instalação completa (wizard interativo)
+./install.sh
+
+# Atualização rápida (sem prompts)
+./install.sh --quick
+
+# Atualização interativa
+./install.sh --update
+
+# Verificar ambiente
+./install.sh --check
+
+# Rollback para versão anterior
+./install.sh --rollback
+
+# Limpar gerações antigas
+./install.sh --clean
+```
+
+### Comandos Manuais
+
+```bash
+# Atualizar dependências + rebuild
+nix flake update
+sudo nixos-rebuild switch --flake .#nixos-workstation
 
 # Rebuild sem switch (teste)
 sudo nixos-rebuild test --flake .
-
-# Atualizar flake.lock
-nix flake update
 
 # Limpar gerações antigas
 sudo nix-collect-garbage -d

@@ -58,7 +58,8 @@ print_banner() {
     echo "║     ██║ ╚████║██║██╔╝ ██╗╚██████╔╝███████║                  ║"
     echo "║     ╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝                  ║"
     echo "║                                                              ║"
-    echo "║          Instalador de Configuração NixOS                   ║"
+    echo "║       Instalador de Configuração NixOS 25.11                ║"
+    echo "║                   \"Xantusia\"                                ║"
     echo "║                                                              ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -135,15 +136,17 @@ show_help() {
     echo ""
     echo "Opções:"
     echo "  --check     Apenas verifica o ambiente, sem instalar"
-    echo "  --update    Atualiza a configuração existente (rebuild)"
+    echo "  --update    Atualiza a configuração existente (rebuild interativo)"
+    echo "  --quick     Atualização rápida sem prompts (flake update + rebuild)"
     echo "  --rollback  Volta para a configuração anterior"
     echo "  --clean     Limpa gerações antigas (garbage collect)"
     echo "  --help      Mostra esta ajuda"
     echo ""
     echo "Exemplos:"
-    echo "  $0              # Instalação completa"
+    echo "  $0              # Instalação completa (wizard interativo)"
     echo "  $0 --check      # Verificar ambiente"
-    echo "  $0 --update     # Atualizar sistema"
+    echo "  $0 --update     # Atualizar sistema (interativo)"
+    echo "  $0 --quick      # Atualizar sistema (sem prompts)"
 }
 
 check_environment() {
@@ -380,6 +383,29 @@ build_system() {
     
     cd "$CONFIG_DIR"
     
+    # Verificar se é primeira instalação ou atualização
+    local is_first_install=false
+    if [[ ! -f "$CONFIG_DIR/flake.lock" ]]; then
+        is_first_install=true
+        log_info "Primeira instalação detectada - gerando flake.lock..."
+    fi
+    
+    # Atualizar flake.lock se necessário ou se solicitado
+    if $is_first_install || confirm "Atualizar dependências (nix flake update)?"; then
+        log_info "Atualizando flake.lock..."
+        if nix $NIX_FLAGS flake update 2>&1 | tee /tmp/flake-update.log; then
+            log_success "flake.lock atualizado!"
+        else
+            log_error "Falha ao atualizar flake.lock"
+            log_info "Verifique /tmp/flake-update.log para detalhes"
+            if ! $is_first_install; then
+                log_warning "Continuando com flake.lock existente..."
+            else
+                return 1
+            fi
+        fi
+    fi
+    
     log_info "Isso pode demorar alguns minutos na primeira vez..."
     log_info "Os caches de Hyprland e CUDA serão usados se disponíveis."
     echo ""
@@ -445,18 +471,37 @@ update_system() {
     
     cd "$CONFIG_DIR"
     
-    if confirm "Atualizar flake.lock (dependências)?"; then
-        log_info "Atualizando dependências..."
-        nix $NIX_FLAGS flake update
-        log_success "Dependências atualizadas"
+    # Verificar se existe flake.lock
+    if [[ ! -f "$CONFIG_DIR/flake.lock" ]]; then
+        log_warning "flake.lock não encontrado - será criado"
+    fi
+    
+    # Sempre atualizar flake.lock por padrão
+    if confirm "Atualizar flake.lock (dependências)?" "y"; then
+        log_info "Executando nix flake update..."
+        if nix $NIX_FLAGS flake update 2>&1 | tee /tmp/flake-update.log; then
+            log_success "Dependências atualizadas!"
+        else
+            log_error "Falha ao atualizar dependências"
+            log_info "Verifique /tmp/flake-update.log para detalhes"
+            if ! confirm "Continuar mesmo assim?"; then
+                return 1
+            fi
+        fi
     fi
     
     log_info "Aplicando configuração..."
+    log_info "Executando: sudo nixos-rebuild switch --flake .#$HOSTNAME"
+    echo ""
     
     if sudo nixos-rebuild switch --flake ".#$HOSTNAME" $NIX_FLAGS; then
         log_success "Sistema atualizado com sucesso!"
+        echo ""
+        log_info "Dica: Para verificar as mudanças, execute:"
+        echo "      sudo nix-env --list-generations --profile /nix/var/nix/profiles/system | tail -5"
     else
         log_error "Falha na atualização"
+        log_info "Tente: sudo nixos-rebuild switch --flake .#$HOSTNAME $NIX_FLAGS --show-trace"
         return 1
     fi
 }
@@ -497,6 +542,49 @@ clean_system() {
     fi
 }
 
+quick_update() {
+    log_step "Atualização Rápida"
+    
+    cd "$CONFIG_DIR"
+    
+    # Verificar se existe flake.nix
+    if [[ ! -f "$CONFIG_DIR/flake.nix" ]]; then
+        log_error "flake.nix não encontrado em $CONFIG_DIR"
+        log_info "Execute o script sem argumentos para instalação completa."
+        return 1
+    fi
+    
+    # 1. Atualizar flake.lock
+    log_info "Passo 1/2: Atualizando flake.lock..."
+    log_info "Executando: nix flake update"
+    echo ""
+    
+    if nix $NIX_FLAGS flake update; then
+        log_success "flake.lock atualizado!"
+    else
+        log_error "Falha ao atualizar flake.lock"
+        return 1
+    fi
+    
+    echo ""
+    
+    # 2. Rebuild e switch
+    log_info "Passo 2/2: Aplicando configuração..."
+    log_info "Executando: sudo nixos-rebuild switch --flake .#$HOSTNAME"
+    echo ""
+    
+    if sudo nixos-rebuild switch --flake ".#$HOSTNAME" $NIX_FLAGS; then
+        log_success "Sistema atualizado com sucesso!"
+        echo ""
+        log_info "Gerações recentes:"
+        sudo nix-env --list-generations --profile /nix/var/nix/profiles/system | tail -3
+    else
+        log_error "Falha na atualização"
+        log_info "Tente: sudo nixos-rebuild switch --flake .#$HOSTNAME $NIX_FLAGS --show-trace"
+        return 1
+    fi
+}
+
 # ============================================================
 # MAIN
 # ============================================================
@@ -518,6 +606,11 @@ main() {
         --update)
             check_environment
             update_system
+            exit $?
+            ;;
+        --quick|-q)
+            check_nixos
+            quick_update
             exit $?
             ;;
         --rollback)

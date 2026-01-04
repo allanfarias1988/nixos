@@ -15,7 +15,7 @@
   # ============================================================
   
   # Versão do NixOS (não altere após instalação)
-  system.stateVersion = "24.11";
+  system.stateVersion = "25.11";
   
   # Habilitar flakes e novo comando nix
   nix = {
@@ -179,18 +179,17 @@
     enableDefaultPackages = true;
     packages = with pkgs; [
       # Nerd Fonts (ícones para terminal e editores)
-      (nerdfonts.override { fonts = [ 
-        "JetBrainsMono" 
-        "FiraCode" 
-        "Iosevka"
-        "CascadiaCode"
-      ]; })
+      # NixOS 25.11: Sintaxe alterada - usar nerd-fonts.* ao invés de nerdfonts.override
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.fira-code
+      nerd-fonts.iosevka
+      nerd-fonts.caskaydia-cove   # CascadiaCode
       
       # Fontes de UI
       inter
       roboto
       noto-fonts
-      noto-fonts-cjk
+      noto-fonts-cjk-sans
       noto-fonts-emoji
       
       # Fontes Microsoft (opcional - para compatibilidade)

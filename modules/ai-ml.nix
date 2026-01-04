@@ -126,7 +126,16 @@
   
   services.ollama = {
     enable = true;
-    acceleration = "cuda";  # ou "rocm" para AMD
+    
+    # NixOS 25.11: acceleration foi removido
+    # Use o pacote específico para sua GPU:
+    # - pkgs.ollama-cuda  (Nvidia com CUDA)
+    # - pkgs.ollama-rocm  (AMD com ROCm)
+    # - pkgs.ollama-vulkan (Vulkan genérico)
+    # - pkgs.ollama-cpu   (Somente CPU)
+    # - pkgs.ollama       (Padrão, detecta automaticamente)
+    package = pkgs.ollama-cuda;  # Para Nvidia
+    # package = pkgs.ollama-rocm;  # Para AMD
     
     # Modelos para baixar automaticamente (opcional)
     # loadModels = [ "llama2" "codellama" ];

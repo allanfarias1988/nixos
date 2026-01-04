@@ -2,8 +2,9 @@
   description = "Configuração NixOS Completa - Allan Farias";
 
   inputs = {
-    # Nixpkgs - canal principal
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Nixpkgs - NixOS 25.11 Stable
+    # Use "nixos-unstable" para versões mais recentes de pacotes
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     
     # Home Manager - configuração do usuário
     home-manager = {

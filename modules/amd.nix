@@ -31,17 +31,16 @@
     enable = true;
     enable32Bit = true;
     extraPackages = with pkgs; [
-      # AMD VA-API
-      amdvlk
+      # NixOS 25.11: amdvlk foi removido
+      # RADV (Mesa) é agora o driver Vulkan padrão e recomendado
       rocmPackages.clr.icd
       
       # Decode de vídeo
       libvdpau-va-gl
       vaapiVdpau
     ];
-    extraPackages32 = with pkgs.driversi686Linux; [
-      amdvlk
-    ];
+    # NixOS 25.11: amdvlk 32-bit também foi removido
+    # extraPackages32 não precisa mais de configuração especial
   };
 
   # ============================================================
@@ -82,10 +81,8 @@
   
   # hardware.amdgpu = {
   #   opencl.enable = true;
-  #   amdvlk = {
-  #     enable = true;
-  #     support32Bit.enable = true;
-  #   };
+  #   # NixOS 25.11: amdvlk foi removido
+  #   # RADV é usado automaticamente como driver Vulkan padrão
   # };
   
   # systemd.tmpfiles.rules = [
